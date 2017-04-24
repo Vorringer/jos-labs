@@ -10,7 +10,9 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/trap.h>
 #include <kern/pmap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -29,6 +31,9 @@ static struct Command commands[] = {
 	{ "showmappings", "showmappings", showmappings },
 	{ "setmapping", "setmapping", setmapping },
 	{ "dumpmem", "dumpmem", dumpmem },
+	{ "x", "display the memory", mon_x},
+	{ "si", "executing the code instruction by instruction", mon_si},
+	{ "c", "continue execution from the current location", mon_c},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -199,6 +204,8 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
+	if (tf != NULL)
+		print_trapframe(tf);
 
 	while (1) {
 		buf = readline("K> ");
@@ -297,6 +304,28 @@ int dumpmem(int argc, char **argv, struct Trapframe *tf) {
 		}
 		cprintf("\n");
 	}
+	return 0;
+}
+
+int
+mon_x(int argc, char **argv, struct Trapframe *tf){
+	int addr = strtol(argv[1], NULL, 16);
+	cprintf("%d\n",*(int*)addr);
+	return 0;
+}
+
+int
+mon_si(int argc, char **argv, struct Trapframe *tf){
+	tf->tf_eflags |= FL_TF;
+	cprintf("tf_eip=%08x\n", tf->tf_eip);
+	env_run(curenv);
+	return 0;
+}
+
+int
+mon_c(int argc, char **argv, struct Trapframe *tf){
+	tf->tf_eflags &= (~FL_TF);
+	env_run(curenv);
 	return 0;
 }
 

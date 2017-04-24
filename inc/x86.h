@@ -150,6 +150,12 @@ lidt(void *p)
 }
 
 static __inline void
+lgdt(void *p)
+{
+	__asm __volatile("lgdt (%0)" : : "r" (p));
+}
+
+static __inline void
 lldt(uint16_t sel)
 {
 	__asm __volatile("lldt %0" : : "r" (sel));
@@ -273,5 +279,24 @@ read_tsc(void)
         __asm __volatile("rdtsc" : "=A" (tsc));
         return tsc;
 }
+
+static inline uint32_t
+xchg(volatile uint32_t *addr, uint32_t newval)
+{
+	uint32_t result;
+
+	// The + in "+m" denotes a read-modify-write operand.
+	asm volatile("lock; xchgl %0, %1" :
+			"+m" (*addr), "=a" (result) :
+			"1" (newval) :
+			"cc");
+	return result;
+}
+
+#define wrmsr(msr, a, d) \
+	__asm__ __volatile__("wrmsr" \
+	: \
+	: "c" (msr), "a" (a), "d" (d)) 
+
 
 #endif /* !JOS_INC_X86_H */
